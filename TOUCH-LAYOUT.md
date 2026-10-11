@@ -38,12 +38,14 @@ Like the upstream iOS CI check, this workflow uses `dotnet build`, but defaults
 to Release for production-server login. It builds only `osu.iOS.csproj` rather than `osu.iOS.slnf`, which also
 contains test apps. It adds `ios-arm64`, unsigned signing options, and
 `BuildIpa=true` so the output is a device IPA rather than only a build check.
-The workflow overrides the repo's Release defaults with `TrimMode=copy` and
-`MtouchInterpreter=all` for both configurations. These avoid removing unused
-managed code and AOT-compiling managed assemblies, addressing the Release build
-that timed out after the assembly-stripping messages. The IPA will be larger,
-and interpreter gameplay performance is not representative of an optimized AOT
-Release build. The iOS processing pipeline and native packaging still run.
+The workflow uses `TrimMode=partial` and `MtouchInterpreter=all` for both
+configurations. Partial trimming retains the normal iOS device trimming mode;
+`copy` is incompatible with the framework's assembly-stripping target, which
+expects assemblies under the intermediate `linked` directory. Interpreting all
+managed assemblies avoids the repo's Release AOT compilation, while keeping
+production-server login. Interpreter gameplay performance is not representative
+of an optimized AOT Release build. Trimming, framework assembly stripping, and
+native packaging still run. The earlier timeout's cause is not yet confirmed.
 
 Normal-verbosity build output and an MSBuild binary log are enabled. The
 `osu-ios-build-diagnostics` artifact is uploaded even if the build fails or

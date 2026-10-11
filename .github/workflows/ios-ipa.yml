@@ -52,13 +52,13 @@ jobs:
       - name: Build device IPA for signing with a sideloading tool
         env:
           BUILD_CONFIGURATION: ${{ inputs.configuration }}
-        # Command-line properties override the Release AOT defaults in osu.iOS.props.
-        # Keep Release server selection without the expensive trimming/AOT passes.
+        # Interpret managed assemblies while keeping Release server selection.
+        # Partial trimming preserves the linked output expected by the framework's assembly stripper.
         run: |
           mkdir -p artifacts
           dotnet build osu.iOS/osu.iOS.csproj \
           -c "$BUILD_CONFIGURATION" -r ios-arm64 \
-          -p:TrimMode=copy \
+          -p:TrimMode=partial \
           -p:MtouchInterpreter=all \
           -p:EnableCodeSigning=false \
           -p:CodesignRequireProvisioningProfile=false \
