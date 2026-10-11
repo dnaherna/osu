@@ -29,8 +29,18 @@ This fork adds **Build unsigned iOS IPA**, a manual workflow using GitHub-hosted
 `xcode-27` runners with Xcode `27.0` selected by default. Push these changes to your fork, enable Actions if prompted,
 then open Actions → Build unsigned iOS IPA → Run workflow. Select the branch
 containing these changes and leave the Xcode version field at `27.0`.
+Leave Configuration at **Debug** for a faster build to test the touch editor.
+Choose **Release** for an optimized build when evaluating gameplay performance.
 Download the `osu-ios-unsigned` artifact from the
 completed run and extract the `.ipa`.
+
+Like the upstream iOS CI check, this workflow uses `dotnet build` and defaults
+to Debug. It builds only `osu.iOS.csproj` rather than `osu.iOS.slnf`, which also
+contains test apps. It adds `ios-arm64`, unsigned signing options, and
+`BuildIpa=true` so the output is a device IPA rather than only a build check.
+The repo enables the Mono interpreter for Debug and AOT compilation for Release;
+Release builds can take considerably longer and offer better runtime performance.
+Debug timing/performance is not representative of the optimized Release build.
 
 The workflow requires no Apple signing secrets. The IPA is unsigned: it must
 be signed/provisioned by your iOS sideloading tool before installation. It is

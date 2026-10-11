@@ -3,6 +3,14 @@ name: Build unsigned iOS IPA
 on:
   workflow_dispatch:
     inputs:
+      configuration:
+        description: 'Debug builds faster; Release optimizes gameplay performance'
+        required: true
+        default: Debug
+        type: choice
+        options:
+          - Debug
+          - Release
       xcode_version:
         description: 'Installed Xcode version (27.0 matches the current .NET iOS workload)'
         required: false
@@ -42,9 +50,11 @@ jobs:
         run: dotnet workload install ios
 
       - name: Build device IPA for signing with a sideloading tool
+        env:
+          BUILD_CONFIGURATION: ${{ inputs.configuration }}
         run: >-
-          dotnet publish osu.iOS/osu.iOS.csproj
-          -c Release -r ios-arm64
+          dotnet build osu.iOS/osu.iOS.csproj
+          -c "$BUILD_CONFIGURATION" -r ios-arm64
           -p:EnableCodeSigning=false
           -p:CodesignRequireProvisioningProfile=false
           -p:CodesignKey=
