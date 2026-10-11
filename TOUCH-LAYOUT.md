@@ -23,12 +23,13 @@ check the preview and adjust the positions to suit the new screen.
 # Building an iPhone IPA without a Mac
 
 The upstream `Continuous Integration` workflow has an iOS build check, but
-does not upload an IPA and uses the custom `xcode-27` runner label.
+does not upload an IPA and uses GitHub's `xcode-27` runner image.
 
 This fork adds **Build unsigned iOS IPA**, a manual workflow using GitHub-hosted
-`macos-26` runners. Push these changes to your fork, enable Actions if prompted,
+`xcode-27` runners with Xcode `27.0` selected by default. Push these changes to your fork, enable Actions if prompted,
 then open Actions → Build unsigned iOS IPA → Run workflow. Select the branch
-containing these changes. Download the `osu-ios-unsigned` artifact from the
+containing these changes and leave the Xcode version field at `27.0`.
+Download the `osu-ios-unsigned` artifact from the
 completed run and extract the `.ipa`.
 
 The workflow requires no Apple signing secrets. The IPA is unsigned: it must
@@ -37,10 +38,14 @@ not a TestFlight/App Store build. A successful cloud run and installation on a
 physical device are still required to verify this workflow and iOS touch UX.
 
 The installed .NET iOS workload and Xcode must be compatible. The workflow logs
-the selected Xcode version. If the runner default is incompatible, supply an
+the selected Xcode version. The Xcode 27 runner is a GitHub-hosted preview image,
+not a custom/self-hosted runner. Selecting Xcode 27 does not change the project's
+minimum supported iOS version (15.0), so iOS 18 remains within that range.
+If a future workload requires another Xcode version, supply a matching
 installed Xcode version in the workflow input; if a required version is not yet
 on GitHub's hosted image, the runner/workload will need updating.
 
 References:
 - [Microsoft iOS build properties](https://learn.microsoft.com/en-us/dotnet/ios/building-apps/build-properties)
 - [GitHub macOS runner images](https://github.com/actions/runner-images)
+- [GitHub Xcode 27 runner announcement](https://github.com/actions/runner-images/issues/14404)

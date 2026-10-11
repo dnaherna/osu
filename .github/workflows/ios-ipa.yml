@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       xcode_version:
-        description: 'Optional installed Xcode version (leave empty for runner default)'
+        description: 'Installed Xcode version (27.0 matches the current .NET iOS workload)'
         required: false
-        default: ''
+        default: '27.0'
         type: string
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   ipa:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
@@ -24,7 +24,13 @@ jobs:
           XCODE_VERSION: ${{ inputs.xcode_version }}
         run: |
           if [ -n "$XCODE_VERSION" ]; then
-            sudo xcode-select --switch "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+            XCODE_PATH="/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+            if [ ! -d "$XCODE_PATH" ]; then
+              echo "::error::Xcode $XCODE_VERSION is not installed on this runner. Available installations:"
+              find /Applications -maxdepth 1 -name 'Xcode*.app' -print
+              exit 1
+            fi
+            sudo xcode-select --switch "$XCODE_PATH"
           fi
           xcodebuild -version
 
