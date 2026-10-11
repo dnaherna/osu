@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       configuration:
-        description: 'Debug builds faster; Release optimizes gameplay performance'
+        description: 'Release uses normal accounts; Debug uses the development server. Both use interpreter builds.'
         required: true
-        default: Debug
+        default: Release
         type: choice
         options:
           - Debug
@@ -52,13 +52,20 @@ jobs:
       - name: Build device IPA for signing with a sideloading tool
         env:
           BUILD_CONFIGURATION: ${{ inputs.configuration }}
-        run: >-
-          dotnet build osu.iOS/osu.iOS.csproj
-          -c "$BUILD_CONFIGURATION" -r ios-arm64
-          -p:EnableCodeSigning=false
-          -p:CodesignRequireProvisioningProfile=false
-          -p:CodesignKey=
-          -p:BuildIpa=true
+        # Command-line properties override the Release AOT defaults in osu.iOS.props.
+        # Keep Release server selection without the expensive trimming/AOT passes.
+        run: |
+          mkdir -p artifacts
+          dotnet build osu.iOS/osu.iOS.csproj \
+          -c "$BUILD_CONFIGURATION" -r ios-arm64 \
+          -p:TrimMode=copy \
+          -p:MtouchInterpreter=all \
+          -p:EnableCodeSigning=false \
+          -p:CodesignRequireProvisioningProfile=false \
+          -p:CodesignKey= \
+          -p:BuildIpa=true \
+          -v normal \
+          -bl:artifacts/ios-build.binlog \
           -p:IpaPackageDir="${{ github.workspace }}/artifacts/"
 
       - uses: actions/upload-artifact@v7
@@ -66,4 +73,13 @@ jobs:
           name: osu-ios-unsigned
           path: artifacts/*.ipa
           if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload build diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: osu-ios-build-diagnostics
+          path: artifacts/ios-build.binlog
+          if-no-files-found: ignore
           retention-days: 7

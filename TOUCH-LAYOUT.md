@@ -29,18 +29,27 @@ This fork adds **Build unsigned iOS IPA**, a manual workflow using GitHub-hosted
 `xcode-27` runners with Xcode `27.0` selected by default. Push these changes to your fork, enable Actions if prompted,
 then open Actions → Build unsigned iOS IPA → Run workflow. Select the branch
 containing these changes and leave the Xcode version field at `27.0`.
-Leave Configuration at **Debug** for a faster build to test the touch editor.
-Choose **Release** for an optimized build when evaluating gameplay performance.
+Leave Configuration at **Release** to connect to the normal osu! account server.
+Debug connects to the separate development server.
 Download the `osu-ios-unsigned` artifact from the
 completed run and extract the `.ipa`.
 
-Like the upstream iOS CI check, this workflow uses `dotnet build` and defaults
-to Debug. It builds only `osu.iOS.csproj` rather than `osu.iOS.slnf`, which also
+Like the upstream iOS CI check, this workflow uses `dotnet build`, but defaults
+to Release for production-server login. It builds only `osu.iOS.csproj` rather than `osu.iOS.slnf`, which also
 contains test apps. It adds `ios-arm64`, unsigned signing options, and
 `BuildIpa=true` so the output is a device IPA rather than only a build check.
-The repo enables the Mono interpreter for Debug and AOT compilation for Release;
-Release builds can take considerably longer and offer better runtime performance.
-Debug timing/performance is not representative of the optimized Release build.
+The workflow overrides the repo's Release defaults with `TrimMode=copy` and
+`MtouchInterpreter=all` for both configurations. These avoid removing unused
+managed code and AOT-compiling managed assemblies, addressing the Release build
+that timed out after the assembly-stripping messages. The IPA will be larger,
+and interpreter gameplay performance is not representative of an optimized AOT
+Release build. The iOS processing pipeline and native packaging still run.
+
+Normal-verbosity build output and an MSBuild binary log are enabled. The
+`osu-ios-build-diagnostics` artifact is uploaded even if the build fails or
+times out, when the runner can finish the upload and the log exists. The last
+assembly named in console output is not necessarily the task causing a stall;
+use the binary log to inspect build targets and timings if this happens again.
 
 The workflow requires no Apple signing secrets. The IPA is unsigned: it must
 be signed/provisioned by your iOS sideloading tool before installation. It is
