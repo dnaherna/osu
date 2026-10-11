@@ -26,6 +26,7 @@ namespace osu.Game.Rulesets.Mania.Configuration
             SetDefault(ManiaRulesetSetting.TimingBasedNoteColouring, false);
             SetDefault(ManiaRulesetSetting.MobileLayout, ManiaMobileLayout.Portrait);
             SetDefault(ManiaRulesetSetting.TouchOverlay, false);
+            SetDefault(ManiaRulesetSetting.TouchLayouts, string.Empty);
         }
 
         public void Migrate()
@@ -60,5 +61,6 @@ namespace osu.Game.Rulesets.Mania.Configuration
         TimingBasedNoteColouring,
         MobileLayout,
         TouchOverlay,
+        TouchLayouts,
     }
 }

@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -9,6 +10,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Events;
 using osu.Game.Configuration;
+using osu.Game.Rulesets.Mania.Configuration;
 using osuTK;
 
 namespace osu.Game.Rulesets.Mania.UI
@@ -41,10 +43,15 @@ namespace osu.Game.Rulesets.Mania.UI
         };
 
         private GridContainer gridContainer = null!;
+        private readonly IBindable<string> layouts;
+        private bool? portrait;
+        private bool layoutInvalid = true;
 
-        public ManiaTouchInputArea(DrawableManiaRuleset drawableRuleset)
+        public ManiaTouchInputArea(DrawableManiaRuleset drawableRuleset, ManiaRulesetConfigManager config)
         {
             this.drawableRuleset = drawableRuleset;
+            layouts = config.GetBindable<string>(ManiaRulesetSetting.TouchLayouts);
+            layouts.BindValueChanged(_ => layoutInvalid = true);
 
             Anchor = Anchor.BottomCentre;
             Origin = Anchor.BottomCentre;
@@ -56,6 +63,58 @@ namespace osu.Game.Rulesets.Mania.UI
         [BackgroundDependencyLoader]
         private void load()
         {
+            rebuildLayout(false);
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+
+            bool isPortrait = Parent!.DrawHeight > Parent.DrawWidth;
+            if (layoutInvalid || portrait != isPortrait)
+            {
+                portrait = isPortrait;
+                layoutInvalid = false;
+                rebuildLayout(isPortrait);
+            }
+        }
+
+        private void rebuildLayout(bool isPortrait)
+        {
+            var columns = drawableRuleset.Playfield.Stages.SelectMany(s => s.Columns).ToArray();
+            var customLayout = ManiaTouchLayout.Get(layouts.Value, columns.Length, isPortrait);
+            Height = customLayout == null ? 0.5f : 1;
+
+            if (customLayout != null)
+            {
+                // Dispose old receptors first so active touches cannot leave actions held.
+                ClearInternal();
+                InternalChild = gridContainer = new GridContainer
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    AlwaysPresent = true,
+                    Alpha = State.Value == Visibility.Visible ? 1 : 0,
+                    Content = new[]
+                    {
+                        new Drawable[]
+                        {
+                            new Container
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                Children = customLayout.Select((zone, i) => new ColumnInputReceptor
+                                {
+                                    RelativePositionAxes = Axes.Both,
+                                    Position = zone.Position,
+                                    Size = zone.Size,
+                                    Action = { BindTarget = columns[i].Action },
+                                }).ToArray()
+                            }
+                        }
+                    }
+                };
+                return;
+            }
+
             List<Drawable> receptorGridContent = new List<Drawable>();
             List<Dimension> receptorGridDimensions = new List<Dimension>();
 
@@ -82,10 +141,12 @@ namespace osu.Game.Rulesets.Mania.UI
                 }
             }
 
+            ClearInternal();
             InternalChild = gridContainer = new GridContainer
             {
                 RelativeSizeAxes = Axes.Both,
                 AlwaysPresent = true,
+                Alpha = State.Value == Visibility.Visible ? 1 : 0,
                 Content = new[] { receptorGridContent.ToArray() },
                 ColumnDimensions = receptorGridDimensions.ToArray()
             };
@@ -130,7 +191,7 @@ namespace osu.Game.Rulesets.Mania.UI
             [Resolved]
             private ManiaInputManager? inputManager { get; set; }
 
-            private bool isPressed;
+            private int touchCount;
 
             public ColumnInputReceptor()
             {
@@ -167,22 +228,19 @@ namespace osu.Game.Rulesets.Mania.UI
 
             protected override bool OnTouchDown(TouchDownEvent e)
             {
-                updateButton(true);
+                if (touchCount++ == 0)
+                    updateButton(true);
                 return false; // handled by parent container to show overlay.
             }
 
             protected override void OnTouchUp(TouchUpEvent e)
             {
-                updateButton(false);
+                if (--touchCount == 0)
+                    updateButton(false);
             }
 
             private void updateButton(bool press)
             {
-                if (press == isPressed)
-                    return;
-
-                isPressed = press;
-
                 if (press)
                 {
                     inputManager?.KeyBindingContainer.TriggerPressed(Action.Value);
@@ -193,6 +251,14 @@ namespace osu.Game.Rulesets.Mania.UI
                     inputManager?.KeyBindingContainer.TriggerReleased(Action.Value);
                     highlightOverlay.FadeTo(0, 400, Easing.OutQuint);
                 }
+            }
+
+            protected override void Dispose(bool isDisposing)
+            {
+                if (touchCount > 0)
+                    inputManager?.KeyBindingContainer.TriggerReleased(Action.Value);
+
+                base.Dispose(isDisposing);
             }
         }
 

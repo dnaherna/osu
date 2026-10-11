@@ -1,0 +1,53 @@
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      xcode_version:
+        description: 'Optional installed Xcode version (leave empty for runner default)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Select Xcode
+        env:
+          XCODE_VERSION: ${{ inputs.xcode_version }}
+        run: |
+          if [ -n "$XCODE_VERSION" ]; then
+            sudo xcode-select --switch "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+          fi
+          xcodebuild -version
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install iOS workload
+        run: dotnet workload install ios
+
+      - name: Build device IPA for signing with a sideloading tool
+        run: >-
+          dotnet publish osu.iOS/osu.iOS.csproj
+          -c Release -r ios-arm64
+          -p:EnableCodeSigning=false
+          -p:CodesignRequireProvisioningProfile=false
+          -p:CodesignKey=
+          -p:BuildIpa=true
+          -p:IpaPackageDir="${{ github.workspace }}/artifacts/"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: osu-ios-unsigned
+          path: artifacts/*.ipa
+          if-no-files-found: error
+          retention-days: 7

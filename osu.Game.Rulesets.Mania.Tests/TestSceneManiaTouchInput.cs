@@ -1,7 +1,9 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Input;
@@ -23,6 +25,7 @@ namespace osu.Game.Rulesets.Mania.Tests
             InputManager.EndTouch(new Touch(TouchSource.Touch1, Vector2.Zero));
             InputManager.EndTouch(new Touch(TouchSource.Touch2, Vector2.Zero));
             toggleTouchControls(false);
+            getConfig().SetValue(ManiaRulesetSetting.TouchLayouts, string.Empty);
         });
 
         #region Without touch controls
@@ -199,6 +202,44 @@ namespace osu.Game.Rulesets.Mania.Tests
         }
 
         #endregion
+
+        [Test]
+        public void TestCustomTouchLayout()
+        {
+            AddStep("move zones to top of screen", () =>
+            {
+                var zones = ManiaTouchLayout.CreateDefault(4);
+                foreach (var zone in zones)
+                {
+                    zone.Y = 0.05f;
+                    zone.Height = 0.2f;
+                }
+
+                getConfig().SetValue(ManiaRulesetSetting.TouchLayouts, JsonConvert.SerializeObject(new Dictionary<string, ManiaTouchLayout[]>
+                {
+                    [ManiaTouchLayout.Key(4, false)] = zones,
+                    [ManiaTouchLayout.Key(4, true)] = zones,
+                }));
+                toggleTouchControls(true);
+            });
+            AddUntilStep("layout applied", () => getReceptor(0).ScreenSpaceDrawQuad.Centre.Y < getTouchOverlay()!.ScreenSpaceDrawQuad.Centre.Y);
+            AddStep("touch moved zone", () => InputManager.BeginTouch(new Touch(TouchSource.Touch1, getReceptor(0).ScreenSpaceDrawQuad.Centre)));
+            AddAssert("correct action pressed", () => this.ChildrenOfType<ManiaInputManager>().SelectMany(m => m.KeyBindingContainer.PressedActions),
+                () => Does.Contain(getColumn(0).Action.Value));
+            AddStep("touch same zone with second finger", () => InputManager.BeginTouch(new Touch(TouchSource.Touch2, getReceptor(0).ScreenSpaceDrawQuad.Centre)));
+            AddStep("release first finger", () => InputManager.EndTouch(new Touch(TouchSource.Touch1, Vector2.Zero)));
+            AddAssert("second finger keeps action held", () => this.ChildrenOfType<ManiaInputManager>().SelectMany(m => m.KeyBindingContainer.PressedActions),
+                () => Does.Contain(getColumn(0).Action.Value));
+            AddStep("release second finger", () => InputManager.EndTouch(new Touch(TouchSource.Touch2, Vector2.Zero)));
+            AddAssert("action released", () => this.ChildrenOfType<ManiaInputManager>().SelectMany(m => m.KeyBindingContainer.PressedActions),
+                () => Does.Not.Contain(getColumn(0).Action.Value));
+            AddStep("touch original zone location", () => InputManager.BeginTouch(new Touch(TouchSource.Touch1,
+                getTouchOverlay()!.ToScreenSpace(new Vector2(getTouchOverlay()!.DrawWidth * 0.125f, getTouchOverlay()!.DrawHeight * 0.75f)))));
+            AddAssert("original zone no longer responds", () => this.ChildrenOfType<ManiaInputManager>().SelectMany(m => m.KeyBindingContainer.PressedActions),
+                () => Is.Empty);
+        }
+
+        private ManiaRulesetConfigManager getConfig() => (ManiaRulesetConfigManager)RulesetConfigs.GetConfigFor(CreatePlayerRuleset())!;
 
         private void toggleTouchControls(bool enabled)
         {

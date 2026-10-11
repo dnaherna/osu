@@ -6,11 +6,13 @@ using System.Linq;
 using osu.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Screens;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Localisation;
 using osu.Game.Overlays.Settings;
 using osu.Game.Rulesets.Mania.Configuration;
 using osu.Game.Rulesets.Mania.UI;
+using osu.Game.Screens;
 
 namespace osu.Game.Rulesets.Mania
 {
@@ -22,7 +24,7 @@ namespace osu.Game.Rulesets.Mania
         }
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(IPerformFromScreenRunner? performer)
         {
             var config = (ManiaRulesetConfigManager)Config;
 
@@ -55,6 +57,13 @@ namespace osu.Game.Rulesets.Mania
                 Caption = RulesetSettingsStrings.TouchOverlay,
                 Current = config.GetBindable<bool>(ManiaRulesetSetting.TouchOverlay)
             }));
+
+            Add(new SettingsButtonV2
+            {
+                Text = "Edit touch layout",
+                Keywords = new[] { "touch", "zones", "grid", "layout" },
+                Action = () => performer?.PerformFromScreen(screen => screen.Push(new ManiaTouchLayoutEditor(config))),
+            });
 
             if (RuntimeInfo.IsMobile)
             {

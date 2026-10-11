@@ -125,15 +125,13 @@ namespace osu.Game.Rulesets.Mania.UI
 
         private void updateMobileLayout()
         {
-            if (touchOverlay.Value)
-                KeyBindingInputManager.Add(touchInputArea = new ManiaTouchInputArea(this));
-            else
-            {
-                if (touchInputArea != null)
-                    KeyBindingInputManager.Remove(touchInputArea, true);
+            if (touchInputArea != null)
+                KeyBindingInputManager.Remove(touchInputArea, true);
 
-                touchInputArea = null;
-            }
+            touchInputArea = null;
+
+            if (touchOverlay.Value)
+                KeyBindingInputManager.Add(touchInputArea = new ManiaTouchInputArea(this, Config));
         }
 
         protected override void AdjustScrollSpeed(int amount) => configScrollSpeed.Value += amount;
